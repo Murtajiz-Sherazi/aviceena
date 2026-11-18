@@ -1,4 +1,4 @@
-import {metrics,reading,trends,importReadings,decodeHeartRate,safety} from './engine.mjs';
+import {metrics,reading,trends,importReadings,decodeHeartRate,safety,checkIn,sleepReview} from './engine.mjs';
 
 const $ = selector=>document.querySelector(selector);
 const messages = $('#messages');
@@ -7,6 +7,9 @@ const metric = $('#metric');
 const share = $('#share');
 const draft = $('#message');
 const records = [];
+const checkIns = [];
+const journalKey = 'aviceena-journal-v1';
+let reviewAttachment;
 const conversation = [];
 const sourceNames = {manual:'Manual',bluetooth:'Bluetooth',import:'CSV'};
 const date = new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'});
@@ -42,6 +45,7 @@ function bubble(role,text,urgent=false) {
 
 function resetChat() {
   conversation.length = 0;
+  attachReview(undefined);
   messages.replaceChildren();
   draft.value = '';
   share.checked = false;
@@ -119,12 +123,13 @@ async function send() {
   setPending(true);
   try {
     const response = await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:model.value,messages:[...conversation.slice(-14),userMessage],records:attached})});
+      body:JSON.stringify({model:model.value,messages:[...conversation.slice(-14),userMessage],records:attached,review:reviewAttachment})});
     const output = await response.json();
     if (!response.ok) throw new Error(output.error);
     if (!output.urgent) conversation.push(userMessage,{role:'assistant',content:output.text.slice(0,4000)});
     if (conversation.length > 16) conversation.splice(0,conversation.length-16);
     bubble('assistant',output.text,output.urgent);
+    attachReview(undefined);
     draft.value = '';
     share.checked = false;
     $('#chat-feedback').textContent = '';
@@ -202,11 +207,13 @@ function renderReadings() {
   share.disabled = pending || !records.length || location.hostname !== '127.0.0.1';
   $('#discuss').disabled = pending || !records.length;
   if (!records.length) share.checked = false;
+  renderRecovery();
 }
 
 function addRecords(items) {
   if (records.length+items.length > 5000) throw new Error('This session is full. Download the summary before clearing readings.');
   records.push(...items);
+  saveJournal();
   renderReadings();
 }
 
@@ -299,6 +306,8 @@ $('#disconnect').addEventListener('click',disconnect);
 $('#clear-records').addEventListener('click',()=>{
   if (!confirm('Clear all readings for this tab?')) return;
   records.length = 0;
+  attachReview(undefined);
+  saveJournal();
   renderReadings();
   $('#reading-feedback').textContent = 'Readings cleared.';
 });
@@ -334,6 +343,212 @@ $('#discuss').addEventListener('click',()=>{
 $('#clear-chat').addEventListener('click',resetChat);
 $('#refresh-models').addEventListener('click',models);
 window.addEventListener('hashchange',navigate);
+
+
+function localDay(value = new Date()) {
+  const time = new Date(value);
+  return new Date(time.getTime()-time.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+
+function labeledElement(tag,text) {
+  const element = document.createElement(tag);
+  element.textContent = text;
+  return element;
+}
+
+function reviewFor(end) {
+  const sleep = records.filter(item=>item.metric==='sleep').map(item=>({...item,day:localDay(item.time)}));
+  return sleepReview(sleep,checkIns,end);
+}
+
+function evidence(label, entries, describe, dayOf) {
+  const details = document.createElement('details');
+  details.className = 'review-evidence';
+  details.append(labeledElement('summary',label));
+  const list = document.createElement('ul');
+  for (const entry of entries) {
+    const day = dayOf(entry);
+    const row = document.createElement('li');
+    const jump = labeledElement('button',day);
+    jump.className = 'secondary compact';
+    jump.addEventListener('click',()=>{
+      $('#timeline-day').value = day;
+      renderRecovery();
+      const timeline = $('#recovery-timeline');
+      timeline.focus();
+      timeline.scrollIntoView({block:'nearest'});
+    });
+    row.append(jump,document.createTextNode(' '+describe(entry)));
+    list.append(row);
+  }
+  details.append(list);
+  return details;
+}
+
+const sleepLabel = item=>item.value+' h · '+sourceNames[item.source]+' · '+date.format(new Date(item.time));
+const energyLabel = item=>item.energy+' energy'+(item.note ? ' · '+item.note : '');
+
+function renderRecovery() {
+  const reviewBox = $('#weekly-review');
+  const end = $('#review-end').value;
+  reviewBox.replaceChildren();
+  $('#review-chat').disabled = true;
+  const local = location.hostname === '127.0.0.1';
+  $('#review-chat-note').textContent = local
+    ? 'Discussing a review attaches its sleep readings and energy levels to your next message. Check-in notes stay in the journal.'
+    : 'Discussion is available in the local Ollama app.';
+  if (end && $('#review-end').validity.valid) {
+    const review = reviewFor(end);
+    const coverage = review.current.length+' of 7 days logged';
+    reviewBox.append(labeledElement('p',review.start+' to '+review.end+' · '+coverage));
+    if (review.average === null) {
+      reviewBox.append(labeledElement('p','Log sleep on at least three days in this window to see a weekly average.'));
+    } else {
+      reviewBox.append(labeledElement('h3','Average sleep · '+review.average+' hours'));
+    }
+    if (review.current.length) {
+      reviewBox.append(evidence('See current-week entries',review.current,sleepLabel,item=>item.day));
+    }
+    if (review.difference !== null) {
+      const change = review.difference === 0 ? 'No change in average sleep' :
+        Math.abs(review.difference)+' hours '+(review.difference>0?'more':'less')+' on average';
+      reviewBox.append(labeledElement('h3',change));
+      reviewBox.append(labeledElement('p','Previous week: '+review.previousAverage+' hours across '+review.prior.length+' logged days.'));
+      reviewBox.append(evidence('See previous-week entries',review.prior,sleepLabel,item=>item.day));
+    } else if (review.average !== null) {
+      reviewBox.append(labeledElement('p','The previous week has '+review.prior.length+' logged days. A comparison needs at least three.'));
+      if (review.prior.length) reviewBox.append(evidence('See previous-week entries',review.prior,sleepLabel,item=>item.day));
+    }
+    if (review.context.length) {
+      reviewBox.append(evidence('See '+review.context.length+' energy '+(review.context.length===1?'check-in':'check-ins'),review.context,energyLabel,item=>item.date));
+    }
+    reviewBox.append(labeledElement('p','Averages use the latest sleep entry per local day and divide the total by the number of days logged. Days without an entry are left out.'));
+    $('#review-chat').disabled = !local || !(review.current.length || review.context.length);
+  } else {
+    reviewBox.append(labeledElement('p','Choose a valid week-ending date.'));
+  }
+  const timeline = $('#recovery-timeline');
+  const day = $('#timeline-day').value;
+  const entries = [];
+  for (const item of records) {
+    if (item.metric==='sleep' && localDay(item.time)===day) {
+      entries.push({day,label:sleepLabel(item)});
+    }
+  }
+  for (const item of checkIns) {
+    if (item.date===day) entries.push({day,label:energyLabel(item)});
+  }
+  timeline.replaceChildren();
+  if (!entries.length) {
+    timeline.append(labeledElement('p','No sleep entries or check-ins for this day.'));
+    return;
+  }
+  const list = document.createElement('ul');
+  for (const item of entries) list.append(labeledElement('li',item.day+' · '+item.label));
+  timeline.append(list);
+}
+
+function attachReview(attachment) {
+  reviewAttachment = attachment;
+  const notice = $('#review-attachment');
+  notice.replaceChildren();
+  notice.hidden = !attachment;
+  if (attachment) {
+    notice.append(document.createTextNode('Weekly review ending '+attachment.end+' attached. '));
+    const remove = labeledElement('button','Remove');
+    remove.className = 'secondary compact';
+    remove.addEventListener('click',()=>attachReview(undefined));
+    notice.append(remove);
+  }
+}
+
+function saveJournal() {
+  const remember = $('#remember-journal').checked;
+  try {
+    if (remember) localStorage.setItem(journalKey,JSON.stringify({records,checkIns}));
+    else localStorage.removeItem(journalKey);
+    $('#journal-status').textContent = remember ? 'Journal saved in this browser.' : 'Journal is kept in this tab.';
+  } catch {
+    $('#journal-status').textContent = 'Could not update browser storage. Check your browser storage settings.';
+  }
+}
+
+function initializeRecovery() {
+  const today = localDay();
+  for (const selector of ['#review-end','#checkin-day','#timeline-day']) {
+    $(selector).value = today;
+    $(selector).max = today;
+    $(selector).min = '1900-01-01';
+  }
+  try {
+    const saved = localStorage.getItem(journalKey);
+    if (saved) {
+      const data = JSON.parse(saved);
+      const restored = data.records.slice(0,5000).map(item=>reading(item.metric,item.value,item.time,item.source));
+      const savedCheckIns = data.checkIns.slice(0,5000).map(item=>checkIn(item.date,item.energy,item.note));
+      records.push(...restored);
+      checkIns.push(...savedCheckIns);
+      $('#remember-journal').checked = true;
+      $('#journal-status').textContent = 'Journal restored from this browser.';
+    }
+  } catch {
+    $('#journal-status').textContent = 'The saved journal could not be restored.';
+  }
+  $('#review-end').addEventListener('change',renderRecovery);
+  $('#timeline-day').addEventListener('change',renderRecovery);
+  $('#checkin-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = new FormData(form);
+    try {
+      const item = checkIn(input.get('day'),input.get('energy'),input.get('note'));
+      const existing = checkIns.findIndex(entry=>entry.date===item.date);
+      if (existing>=0) checkIns[existing] = item;
+      else checkIns.push(item);
+      $('#timeline-day').value = item.date;
+      $('#checkin-status').textContent = 'Check-in saved for '+item.date+'.';
+      form.elements.note.value = '';
+      saveJournal();
+      renderRecovery();
+    } catch (error) {
+      $('#checkin-status').textContent = error.message;
+    }
+  });
+  $('#review-chat').addEventListener('click',()=>{
+    if (pending) {
+      location.hash = '#talk';
+      return;
+    }
+    const review = reviewFor($('#review-end').value);
+    attachReview({end:review.end,sleep:[...review.current,...review.prior],
+      energy:review.context.map(({date,energy})=>({date,energy}))});
+    share.checked = false;
+    location.hash = '#talk';
+    draft.value = 'What stands out in my weekly sleep and recovery review? Please use the logged dates.';
+  });
+  $('#remember-journal').addEventListener('change',saveJournal);
+  $('#export-journal').addEventListener('click',()=>{
+    const payload = JSON.stringify({records,checkIns},null,2);
+    const url = URL.createObjectURL(new Blob([payload],{type:'application/json'}));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'aviceena-journal.json';
+    link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+  $('#delete-journal').addEventListener('click',()=>{
+    if (!confirm('Delete all readings and check-ins and remove the saved journal from this browser?')) return;
+    records.length = 0;
+    checkIns.length = 0;
+    $('#remember-journal').checked = false;
+    attachReview(undefined);
+    saveJournal();
+    renderReadings();
+    $('#checkin-status').textContent = '';
+  });
+}
+
+initializeRecovery();
 resetChat();
 updateMetric();
 setTime();

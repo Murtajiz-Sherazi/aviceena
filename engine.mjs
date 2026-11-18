@@ -60,3 +60,40 @@ export function safety(text) {
     return 'If someone may be in immediate danger, contact local emergency services now. If you can, ask someone nearby you trust to stay with you. Aviceena cannot send help.';
   return null;
 }
+
+export function checkIn(date, energy, note) {
+  if (typeof date !== 'string' || !/^\d{4}-\d\d-\d\d$/.test(date) ||
+      !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0,10) !== date ||
+      !['low','steady','high'].includes(energy) || typeof note !== 'string' || note.length > 280)
+    throw new Error('Choose a valid date and energy level. Notes can be up to 280 characters.');
+  return {date,energy,note:note.trim()};
+}
+
+const shiftDay = (day,offset) => new Date(Date.parse(day)+offset*86400000).toISOString().slice(0,10);
+
+export function sleepReview(sleep, checkIns, end) {
+  checkIn(end,'steady','');
+  const start = shiftDay(end,-6);
+  const previousStart = shiftDay(end,-13);
+  const nights = new Map();
+  for (const item of sleep) {
+    checkIn(item.day,'steady','');
+    const entry = reading('sleep',item.value,item.time,item.source);
+    if (item.day < previousStart || item.day > end) continue;
+    const existing = nights.get(item.day);
+    if (!existing || existing.time <= entry.time) nights.set(item.day,{...entry,day:item.day});
+  }
+  const sorted = [...nights.values()].sort((a,b)=>a.day.localeCompare(b.day));
+  const current = sorted.filter(item=>item.day>=start);
+  const prior = sorted.filter(item=>item.day<start);
+  const context = checkIns.map(item=>checkIn(item.date,item.energy,item.note))
+    .filter(item=>item.date>=start && item.date<=end).sort((a,b)=>a.date.localeCompare(b.date));
+  const mean = items => items.reduce((sum,item)=>sum+item.value,0)/items.length;
+  const round = value => Number(value.toFixed(2));
+  const enough = current.length>=3;
+  const compare = enough && prior.length>=3;
+  return {start,end,previousStart,previousEnd:shiftDay(start,-1),current,prior,context,
+    average:enough ? round(mean(current)) : null,
+    previousAverage:compare ? round(mean(prior)) : null,
+    difference:compare ? round(mean(current)-mean(prior)) : null};
+}

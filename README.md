@@ -18,8 +18,14 @@ Requires Node.js 20+ and Ollama for chat. From this folder, run `npm start` and 
 
 ## Privacy and boundaries
 
-Conversation and readings are held in the current tab. Reload or close the tab to clear them. Downloaded summaries stay where you save them. The app serves on loopback, sends chat requests to Ollama on loopback, and filters out models tagged as remote or cloud. Use a trusted local Ollama installation and local models. Select the readings checkbox to include descriptive summaries of up to 300 recent readings with that message. Past model replies can retain information you previously shared. Start a new conversation to drop that context.
+Conversation stays in the current tab. Readings and check-ins are held in the tab by default; journal storage is opt-in. Downloaded summaries stay where you save them. The app serves on loopback, sends chat requests to Ollama on loopback, and filters out models tagged as remote or cloud. Use a trusted local Ollama installation and local models. Select the readings checkbox to include descriptive summaries of up to 300 recent readings with that message. Past model replies can retain information you previously shared. Start a new conversation to drop that context.
 
 Aviceena provides general wellbeing support and descriptive trends. Model output is unvalidated and can be wrong. The phrase-based emergency prompt runs independently of Ollama and has limited coverage. Aviceena does not provide medical diagnosis, contact emergency services, or monitor in the background.
 
 Run `npm test` for data handling, Bluetooth decoding, and emergency rule tests.
+
+## Sleep and recovery
+
+Log sleep with the date you want it counted on, usually the morning you woke up. Save one optional energy check-in per day. The weekly review uses the newest sleep entry per local calendar day and computes an average after at least three logged days. Comparison with the preceding seven days requires three logged days in both windows. Expand an observation's evidence to see the entries used, then select a date to see its sleep and check-in timeline.
+
+In Settings, you can opt into browser storage, export the journal as JSON, or delete it. Browser storage is per origin and browser profile. The GitHub Pages journal and localhost journal are separate. In the local app, **Discuss this review locally** attaches dated sleep and energy data to your next message; check-in notes are excluded. The server recomputes the review for Ollama. Model explanations can still make mistakes, so verify them against the evidence in the review.

@@ -111,3 +111,12 @@ footer { padding-top:20px; padding-bottom:23px; }
   a,button { transition:background-color .15s,filter .15s; } .orb { animation:float-in .65s ease-out both; }
   @keyframes float-in { from { opacity:.35; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 }
+
+#weekly-review { margin-top:14px; }
+#weekly-review h3 { margin-top:14px; }
+.review-evidence { border-top:1px solid var(--line); padding:10px 0; }
+.review-evidence summary { color:var(--accent); cursor:pointer; font-weight:650; }
+.review-evidence li,#recovery-timeline li { margin:.55rem 0; overflow-wrap:anywhere; }
+#timeline-day { max-width:100%; }
+#review-attachment { padding:.6rem; background:var(--lavender); border-radius:12px; }
+@media(min-width:1050px) { .tiles { grid-template-columns:repeat(4,minmax(0,1fr)); } }

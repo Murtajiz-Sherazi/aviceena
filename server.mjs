@@ -1,6 +1,6 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
-import {reading,trends,safety} from './engine.mjs';
+import {reading,trends,safety,sleepReview} from './engine.mjs';
 
 const assets = new Map([
   ['/', ['index.html','text/html']], ['/style.css',['style.css','text/css']],
@@ -32,6 +32,7 @@ async function models() {
 }
 
 async function bodyOf(request) {
+  request.setEncoding('utf8');
   let body = '';
   for await (const chunk of request) {
     body += chunk;
@@ -41,7 +42,7 @@ async function bodyOf(request) {
 }
 
 async function chat(request,response) {
-  let input, messages, records;
+  let input, messages, records, review;
   try {
     input = await bodyOf(request);
     if (!Array.isArray(input.messages) || !input.messages.length || input.messages.length > 16 ||
@@ -52,6 +53,12 @@ async function chat(request,response) {
     });
     if (messages.at(-1).role !== 'user') throw new Error();
     records = input.records.map(item=>reading(item.metric,item.value,item.time,item.source));
+    if (input.review !== undefined) {
+      const {sleep, energy, end} = input.review;
+      if (!Array.isArray(sleep) || sleep.length > 14 || !Array.isArray(energy) || energy.length > 7)
+        throw new Error();
+      review = sleepReview(sleep,energy.map(item=>({...item,note:''})),end);
+    }
   } catch {
     return json(response,400,{error:'This message or its attached readings could not be read.'});
   }
@@ -60,7 +67,8 @@ async function chat(request,response) {
   try {
     const available = await models();
     if (!available.includes(input.model)) return json(response,409,{error:'Choose an installed local Ollama model and try again.'});
-    const context = records.length ? 'The user chose to share these descriptive summaries: '+JSON.stringify(trends(records)) : 'No readings were shared with you.';
+    let context = records.length ? 'The user chose to share these descriptive summaries: '+JSON.stringify(trends(records)) : 'No readings were shared with you.';
+    if (review) context += '\nThe user attached a weekly recovery review. Treat these computed statistics as the only source for weekly calculations. A null average means fewer than three nights. Never infer causes from energy check-ins. Evidence IDs refer to the dates shown in the app. '+JSON.stringify(review);
     const upstream = await fetch(ollama+'/api/chat',{
       method:'POST',headers:{'Content-Type':'application/json'},redirect:'error',signal:AbortSignal.timeout(180000),
       body:JSON.stringify({model:input.model,stream:false,options:{temperature:.65,num_predict:480,num_ctx:4096},

@@ -37,3 +37,30 @@ test('emergency phrases have separate guidance while everyday stress goes to cha
   assert.match(safety('I want to hurt myself'),/emergency services/);
   assert.equal(safety('I feel stressed after work'),null);
 });
+
+test('weekly review counts distinct logged nights and uses latest per local day',async()=>{
+  const {sleepReview} = await import('./engine.mjs');
+  const entry = (day,value,hour='08')=>({day,value,time:day+'T'+hour+':00:00Z',source:'manual'});
+  const review = sleepReview([
+    entry('2026-11-19',6),entry('2026-11-19',8,'10'),entry('2026-11-18',7),
+    entry('2026-11-13',6),entry('2026-11-12',5),entry('2026-11-11',6),entry('2026-11-10',7),
+    entry('2026-11-05',19),entry('2026-11-20',20)
+  ],[{date:'2026-11-19',energy:'low',note:'Late meeting'}],'2026-11-19');
+  assert.equal(review.start,'2026-11-13');
+  assert.equal(review.previousStart,'2026-11-06');
+  assert.deepEqual(review.current.map(item=>item.value),[6,7,8]);
+  assert.equal(review.average,7);
+  assert.equal(review.previousAverage,6);
+  assert.equal(review.difference,1);
+  assert.equal(review.context[0].note,'Late meeting');
+});
+
+test('sparse sleep stays unestimated and invalid check-ins are rejected',async()=>{
+  const {checkIn,sleepReview} = await import('./engine.mjs');
+  const result = sleepReview([{day:'2026-11-19',value:8,time,source:'manual'}],[],'2026-11-19');
+  assert.equal(result.current.length,1);
+  assert.equal(result.average,null);
+  assert.equal(result.difference,null);
+  assert.throws(()=>checkIn('2026-02-30','steady',''));
+  assert.throws(()=>checkIn('2026-11-19','unknown',''));
+});

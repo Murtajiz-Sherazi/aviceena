@@ -17,6 +17,7 @@
     <a href="#home"><span aria-hidden="true">⌂</span> Home</a>
     <a href="#talk"><span aria-hidden="true">◌</span> Talk to Aviceena</a>
     <a href="#readings"><span aria-hidden="true">♡</span> My readings</a>
+    <a href="#recovery"><span aria-hidden="true">☾</span> Sleep &amp; recovery</a>
     <a href="#devices"><span aria-hidden="true">◎</span> Devices</a>
     <a href="#settings"><span aria-hidden="true">⚙</span> Settings</a>
   </nav>
@@ -32,6 +33,7 @@
       <div class="tiles">
         <section class="card tile"><span class="tile-icon lavender" aria-hidden="true">◌</span><h3>Check in</h3><p>Talk about your day, untangle a worry, or try a grounding exercise.</p><a class="text-link" href="#talk">Start a conversation</a></section>
         <section class="card tile"><span class="tile-icon peach" aria-hidden="true">♡</span><h3>Log a reading</h3><p>Add a measurement and see how it changes over time.</p><a class="text-link" href="#readings">Open my readings</a></section>
+        <section class="card tile"><span class="tile-icon mint" aria-hidden="true">☾</span><h3>Sleep &amp; recovery</h3><p>Make a quick check-in and look back on the week.</p><a class="text-link" href="#recovery">Open weekly review</a></section>
         <section class="card tile"><span class="tile-icon mint" aria-hidden="true">◎</span><h3>Bring your device</h3><p>Connect a compatible heart-rate sensor or import measurements.</p><a class="text-link" href="#devices">Explore connections</a></section>
       </div>
     </section>
@@ -43,7 +45,7 @@
         <div class="suggestions"><button class="secondary" data-prompt="I'd like to talk about how my day went.">Check in</button><button class="secondary" data-prompt="Can you guide me through a short grounding exercise?">Take a breath</button><button class="secondary" id="discuss">Discuss my readings</button></div>
         <form id="chat-form"><label class="sr-only" for="message">Your message</label><textarea id="message" rows="2" maxlength="2000" required placeholder="What’s on your mind?"></textarea><button id="send">Send</button></form>
         <div class="chat-controls"><label class="check"><input id="share" type="checkbox" disabled> Include recent readings in this message</label><a href="#settings" class="text-link">Model settings</a></div>
-        <p class="feedback" id="chat-feedback" role="status"></p><p class="fine" id="hosted-chat" hidden>AI chat runs through Ollama on your computer. <a class="text-link" href="https://github.com/Murtajiz-Sherazi/aviceena#run-locally">Set up local chat</a>.</p>
+        <p class="feedback" id="review-attachment" hidden></p><p class="feedback" id="chat-feedback" role="status"></p><p class="fine" id="hosted-chat" hidden>AI chat runs through Ollama on your computer. <a class="text-link" href="https://github.com/Murtajiz-Sherazi/aviceena#run-locally">Set up local chat</a>.</p>
       </section>
       <p class="fine">Aviceena can help you reflect and understand trends. For health decisions, talk with a qualified professional.</p>
     </section>
@@ -60,6 +62,23 @@
       </div>
       <section class="card history"><div class="section-heading in-card"><h2>Recent readings</h2><button class="secondary compact" id="clear-records" disabled>Clear readings</button></div><div id="records"></div></section>
     </section>
+    <section id="recovery" class="page" hidden>
+      <div class="page-title"><p class="eyebrow">YOUR WELLBEING JOURNAL</p><h1>Sleep &amp; recovery</h1><p>See what you logged this week and give it context with a check-in.</p></div>
+      <div class="split">
+        <section class="card"><div class="section-heading in-card"><h2>Weekly review</h2><a class="text-link" href="#readings">Log sleep</a></div>
+          <label class="stack">Week ending <input id="review-end" type="date" required></label>
+          <div id="weekly-review"></div><button id="review-chat" class="secondary">Discuss this review locally</button>
+          <p id="review-chat-note" class="fine"></p>
+        </section>
+        <section class="card"><h2>How was your energy?</h2><form id="checkin-form" class="stack">
+          <label>Date<input name="day" id="checkin-day" type="date" required></label>
+          <label>Energy<select name="energy"><option value="steady">Steady</option><option value="low">Low</option><option value="high">High</option></select></label>
+          <label>What was going on? (optional)<textarea name="note" maxlength="280" rows="3"></textarea></label>
+          <button>Save check-in</button><p class="feedback" id="checkin-status" role="status"></p>
+        </form></section>
+      </div>
+      <section class="card history"><div class="section-heading in-card"><h2>Sleep and check-in timeline</h2><label class="stack">Journal day<input id="timeline-day" type="date" required></label></div><div id="recovery-timeline" tabindex="-1"></div></section>
+    </section>
     <section id="devices" class="page" hidden>
       <div class="page-title"><p class="eyebrow">YOUR DATA SOURCES</p><h1>Devices</h1><p>Choose how to bring your measurements into Aviceena.</p></div>
       <div class="split">
@@ -73,7 +92,7 @@
         <label>Installed model<select id="model" disabled><option>Checking Ollama…</option></select></label>
         <button id="refresh-models" class="secondary">Refresh models</button><p class="feedback" id="model-detail" role="status"></p>
       </div></section>
-      <section class="card settings"><h2>Your privacy</h2><p>This tab keeps your conversation and readings in memory until you close or reload it. Chat is processed through local Ollama. To include recent readings, select the checkbox for that message. A model reply may refer back to readings you previously shared in the same conversation.</p><p>You can clear the conversation or readings at any time. Downloaded summaries remain where you save them.</p></section>
+      <section class="card settings"><h2>Your privacy</h2><div class="stack"><label class="check"><input id="remember-journal" type="checkbox"> Save this journal in this browser</label><div class="actions"><button class="secondary" id="export-journal">Export journal</button><button class="secondary" id="delete-journal">Delete journal</button></div><p id="journal-status" class="feedback" role="status"></p></div><p>Chat stays in this tab. The journal stays in this tab unless you opt into browser storage. Saved journal data can be accessed by other people using this browser profile. Chat is processed through local Ollama. To include recent readings, select the checkbox for that message. A model reply may refer back to readings you previously shared in the same conversation.</p><p>You can clear the conversation or readings at any time. Downloaded summaries remain where you save them.</p></section>
     </section>
   </main>
   <footer>Aviceena · Everyday wellbeing</footer>
