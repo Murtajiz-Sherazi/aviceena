@@ -1,4 +1,4 @@
-import {metrics,reading,trends,importReadings,decodeHeartRate,safety,checkIn,sleepReview} from './engine.mjs';
+import {metrics,reading,trends,importReadings,decodeHeartRate,safety,checkIn,sleepReview} from './engine.mjs?v=recovery-1';
 
 const $ = selector=>document.querySelector(selector);
 const messages = $('#messages');
