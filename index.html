@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Aviceena, your private space for everyday wellbeing.">
+<title>Aviceena · Your wellbeing companion</title>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="shell">
+<aside class="rail">
+  <a class="brand" href="#home"><span class="mark" aria-hidden="true">✦</span>Aviceena</a>
+  <nav aria-label="Main navigation">
+    <a href="#home"><span aria-hidden="true">⌂</span> Home</a>
+    <a href="#talk"><span aria-hidden="true">◌</span> Talk to Aviceena</a>
+    <a href="#readings"><span aria-hidden="true">♡</span> My readings</a>
+    <a href="#devices"><span aria-hidden="true">◎</span> Devices</a>
+    <a href="#settings"><span aria-hidden="true">⚙</span> Settings</a>
+  </nav>
+  <div class="rail-end"><span aria-hidden="true">◇</span><div><strong>Private by design</strong><small>Local session</small></div></div>
+</aside>
+<div class="workspace">
+  <header class="top"><strong id="breadcrumb">Home</strong><span id="model-status" class="status" role="status">Checking Ollama…</span></header>
+  <main id="main" tabindex="-1">
+    <section id="home" class="page">
+      <div class="hero"><div class="hero-copy"><p class="eyebrow">YOUR WELLBEING COMPANION</p><h1>How are you<br>really feeling?</h1><p>Talk through what’s on your mind, make sense of your readings, or take a moment for yourself.</p><a class="button" href="#talk">Talk to Aviceena</a></div>
+      <div class="hero-art" aria-hidden="true"><div class="orbit"></div><div class="orb"></div><i>✧</i><b>✦</b><span>·</span></div></div>
+      <div class="section-heading"><h2>A little space for you</h2></div>
+      <div class="tiles">
+        <section class="card tile"><span class="tile-icon lavender" aria-hidden="true">◌</span><h3>Check in</h3><p>Talk about your day, untangle a worry, or try a grounding exercise.</p><a class="text-link" href="#talk">Start a conversation</a></section>
+        <section class="card tile"><span class="tile-icon peach" aria-hidden="true">♡</span><h3>Log a reading</h3><p>Add a measurement and see how it changes over time.</p><a class="text-link" href="#readings">Open my readings</a></section>
+        <section class="card tile"><span class="tile-icon mint" aria-hidden="true">◎</span><h3>Bring your device</h3><p>Connect a compatible heart-rate sensor or import measurements.</p><a class="text-link" href="#devices">Explore connections</a></section>
+      </div>
+    </section>
+    <section id="talk" class="page" hidden>
+      <div class="page-title"><p class="eyebrow">A MOMENT FOR YOU</p><h1>Talk to Aviceena</h1><p>Start with whatever’s on your mind.</p></div>
+      <section class="card chat">
+        <header class="chat-heading"><span class="mark" aria-hidden="true">✦</span><div><strong>Aviceena</strong><span>AI wellbeing companion</span></div><button class="secondary compact" id="clear-chat">New conversation</button></header>
+        <div id="messages" class="messages" role="log" aria-label="Conversation"></div>
+        <div class="suggestions"><button class="secondary" data-prompt="I'd like to talk about how my day went.">Check in</button><button class="secondary" data-prompt="Can you guide me through a short grounding exercise?">Take a breath</button><button class="secondary" id="discuss">Discuss my readings</button></div>
+        <form id="chat-form"><label class="sr-only" for="message">Your message</label><textarea id="message" rows="2" maxlength="2000" required placeholder="What’s on your mind?"></textarea><button id="send">Send</button></form>
+        <div class="chat-controls"><label class="check"><input id="share" type="checkbox" disabled> Include recent readings in this message</label><a href="#settings" class="text-link">Model settings</a></div>
+        <p class="feedback" id="chat-feedback" role="status"></p><p class="fine" id="hosted-chat" hidden>AI chat runs through Ollama on your computer. <a class="text-link" href="https://github.com/Murtajiz-Sherazi/aviceena#run-locally">Set up local chat</a>.</p>
+      </section>
+      <p class="fine">Aviceena can help you reflect and understand trends. For health decisions, talk with a qualified professional.</p>
+    </section>
+    <section id="readings" class="page" hidden>
+      <div class="page-title"><p class="eyebrow">YOUR WELLBEING JOURNAL</p><h1>My readings</h1><p>Add a measurement to start seeing your own patterns.</p></div>
+      <div class="split">
+        <section class="card"><h2>Add a reading</h2><form id="reading-form" class="stack">
+          <label>Measurement<select id="metric" name="metric"></select></label>
+          <label><span id="value-label">Value</span><input id="reading-value" name="value" type="number" step="any" required inputmode="decimal"></label>
+          <label>When<input id="reading-time" name="time" type="datetime-local" required></label>
+          <button>Save reading</button><p class="feedback" id="reading-feedback" role="status"></p>
+        </form></section>
+        <section class="card"><div class="section-heading in-card"><h2>Your patterns</h2><a href="#devices" class="text-link">Add a device</a></div><div id="patterns"></div><button class="secondary" id="export" disabled>Download summary</button></section>
+      </div>
+      <section class="card history"><div class="section-heading in-card"><h2>Recent readings</h2><button class="secondary compact" id="clear-records" disabled>Clear readings</button></div><div id="records"></div></section>
+    </section>
+    <section id="devices" class="page" hidden>
+      <div class="page-title"><p class="eyebrow">YOUR DATA SOURCES</p><h1>Devices</h1><p>Choose how to bring your measurements into Aviceena.</p></div>
+      <div class="split">
+        <section class="card"><span class="tile-icon mint" aria-hidden="true">◎</span><h2>Bluetooth heart-rate sensor</h2><p>Pair a device that advertises the standard Bluetooth Heart Rate service. Open Aviceena in Chrome or Edge if pairing is unavailable here.</p><div class="actions"><button id="connect">Connect sensor</button><button id="disconnect" class="secondary" disabled>Disconnect</button></div><p class="feedback" id="device-status" role="status"></p></section>
+        <section class="card"><span class="tile-icon lavender" aria-hidden="true">▤</span><h2>Import a device export</h2><p>Import a CSV formatted as <code>timestamp,metric,value</code>. Use ISO timestamps with a time zone and the units shown below.</p><p class="fine">heart (bpm), glucose (mg/dL), temperature (°C), sleep (hours), oxygen (%)</p><label class="file-label">Choose CSV file<input id="import" type="file" accept=".csv,text/csv"></label><p class="feedback" id="import-status" role="status"></p></section>
+      </div>
+    </section>
+    <section id="settings" class="page" hidden>
+      <div class="page-title"><p class="eyebrow">MAKE IT YOURS</p><h1>Settings</h1><p>Choose which local Ollama model Aviceena uses.</p></div>
+      <section class="card settings"><h2>Conversation model</h2><div class="stack">
+        <label>Installed model<select id="model" disabled><option>Checking Ollama…</option></select></label>
+        <button id="refresh-models" class="secondary">Refresh models</button><p class="feedback" id="model-detail" role="status"></p>
+      </div></section>
+      <section class="card settings"><h2>Your privacy</h2><p>This tab keeps your conversation and readings in memory until you close or reload it. Chat is processed through local Ollama. To include recent readings, select the checkbox for that message. A model reply may refer back to readings you previously shared in the same conversation.</p><p>You can clear the conversation or readings at any time. Downloaded summaries remain where you save them.</p></section>
+    </section>
+  </main>
+  <footer>Aviceena · Everyday wellbeing</footer>
+</div>
+</div>
+</body>
+</html>
