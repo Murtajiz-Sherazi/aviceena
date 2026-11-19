@@ -1,4 +1,4 @@
-import {metrics,reading,trends,importReadings,decodeHeartRate,safety,checkIn,sleepReview} from './engine.mjs?v=recovery-1';
+import {metrics,reading,trends,importReadings,decodeHeartRate,safety,checkIn,sleepReview} from './engine.mjs?v=cloud-beta-1';
 
 const $ = selector=>document.querySelector(selector);
 const messages = $('#messages');
@@ -6,6 +6,10 @@ const model = $('#model');
 const metric = $('#metric');
 const share = $('#share');
 const draft = $('#message');
+const localChat = location.hostname === '127.0.0.1' && !document.querySelector('[name="aviceena-hosted-chat"]');
+const cloudChat = Boolean(document.querySelector('[name="aviceena-hosted-chat"]'));
+let invite = '';
+const canChat = () => localChat || (cloudChat && Boolean(invite));
 const records = [];
 const checkIns = [];
 const journalKey = 'aviceena-journal-v1';
@@ -54,7 +58,20 @@ function resetChat() {
 }
 
 async function models() {
-  if (location.hostname !== '127.0.0.1') {
+  if (cloudChat) {
+    $('#beta-details').hidden = false;
+    $('#beta-form').hidden = Boolean(invite);
+    $('#model-status').textContent = invite ? '✦ Cloud AI ready' : 'Invite-only beta';
+    model.replaceChildren(new Option(invite ? 'Cloudflare Workers AI' : 'Beta invite required',''));
+    model.disabled = !invite;
+    $('#model-detail').textContent = 'Unlock cloud chat from Talk to Aviceena.';
+    $('#refresh-models').disabled = true;
+    $('#reading-share-label').hidden = true;
+    setPending(pending);
+    renderRecovery();
+    return;
+  }
+  if (!localChat) {
     model.replaceChildren(new Option('Available in the local app',''));
     $('#model-status').textContent = 'Web edition';
     $('#model-detail').textContent = 'Run the local edition with Ollama to enable AI chat.';
@@ -91,18 +108,19 @@ async function models() {
 
 function setPending(value) {
   pending = value;
-  $('#send').disabled = value;
+  $('#send').disabled = value || !canChat();
   $('#send').textContent = value ? 'Thinking…' : 'Send';
   $('#clear-chat').disabled = value;
-  draft.disabled = value;
-  share.disabled = value || !records.length;
-  for (const button of document.querySelectorAll('[data-prompt]')) button.disabled = value;
-  $('#discuss').disabled = value || !records.length;
+  draft.disabled = value || !canChat();
+  share.disabled = value || !records.length || !localChat;
+  for (const button of document.querySelectorAll('[data-prompt]')) button.disabled = value || !canChat();
+  $('#discuss').hidden = cloudChat;
+  $('#discuss').disabled = value || !records.length || !localChat;
 }
 
 async function send() {
   const text = draft.value.trim();
-  if (!text || pending || location.hostname !== '127.0.0.1') return;
+  if (!text || pending || !canChat()) return;
   const emergency = safety(text);
   if (emergency) {
     bubble('user',text);
@@ -122,9 +140,10 @@ async function send() {
   $('#chat-feedback').textContent = 'Aviceena is thinking. The first reply may take a moment.';
   setPending(true);
   try {
-    const response = await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+    const response = await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json',...(cloudChat && {Authorization:'Bearer '+invite})},
       body:JSON.stringify({model:model.value,messages:[...conversation.slice(-14),userMessage],records:attached,review:reviewAttachment})});
     const output = await response.json();
+    if (response.status===401 && cloudChat) { invite=''; void models(); }
     if (!response.ok) throw new Error(output.error);
     if (!output.urgent) conversation.push(userMessage,{role:'assistant',content:output.text.slice(0,4000)});
     if (conversation.length > 16) conversation.splice(0,conversation.length-16);
@@ -204,7 +223,7 @@ function renderReadings() {
   }
   $('#export').disabled = !records.length;
   $('#clear-records').disabled = !records.length;
-  share.disabled = pending || !records.length || location.hostname !== '127.0.0.1';
+  share.disabled = pending || !records.length || !localChat;
   $('#discuss').disabled = pending || !records.length;
   if (!records.length) share.checked = false;
   renderRecovery();
@@ -393,8 +412,9 @@ function renderRecovery() {
   const end = $('#review-end').value;
   reviewBox.replaceChildren();
   $('#review-chat').disabled = true;
-  const local = location.hostname === '127.0.0.1';
-  $('#review-chat-note').textContent = local
+  const local = localChat;
+  $('#review-chat').textContent = cloudChat ? 'Discuss this review' : 'Discuss this review locally';
+  $('#review-chat-note').textContent = cloudChat ? 'You can attach sleep readings and energy levels to your next message. Journal notes stay in your browser.' : local
     ? 'Discussing a review attaches its sleep readings and energy levels to your next message. Check-in notes stay in the journal.'
     : 'Discussion is available in the local Ollama app.';
   if (end && $('#review-end').validity.valid) {
@@ -423,7 +443,7 @@ function renderRecovery() {
       reviewBox.append(evidence('See '+review.context.length+' energy '+(review.context.length===1?'check-in':'check-ins'),review.context,energyLabel,item=>item.date));
     }
     reviewBox.append(labeledElement('p','Averages use the latest sleep entry per local day and divide the total by the number of days logged. Days without an entry are left out.'));
-    $('#review-chat').disabled = !local || !(review.current.length || review.context.length);
+    $('#review-chat').disabled = !canChat() || !(review.current.length || review.context.length);
   } else {
     reviewBox.append(labeledElement('p','Choose a valid week-ending date.'));
   }
@@ -548,6 +568,27 @@ function initializeRecovery() {
   });
 }
 
+$('#beta-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const field = $('#beta-code');
+  const button = event.currentTarget.querySelector('button');
+  button.disabled = true;
+  $('#beta-status').textContent = 'Checking invite…';
+  try {
+    const code = field.value.trim().toLowerCase();
+    const response = await fetch('/api/models',{headers:{Authorization:'Bearer '+code}});
+    if (!response.ok) throw new Error('That invite code did not unlock chat.');
+    invite = code;
+    field.value = '';
+    $('#beta-status').textContent = 'Chat unlocked for this tab.';
+    await models();
+    draft.focus();
+  } catch (error) {
+    $('#beta-status').textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 initializeRecovery();
 resetChat();
 updateMetric();

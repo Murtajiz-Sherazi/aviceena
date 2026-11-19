@@ -29,3 +29,13 @@ Run `npm test` for data handling, Bluetooth decoding, and emergency rule tests.
 Log sleep with the date you want it counted on, usually the morning you woke up. Save one optional energy check-in per day. The weekly review uses the newest sleep entry per local calendar day and computes an average after at least three logged days. Comparison with the preceding seven days requires three logged days in both windows. Expand an observation's evidence to see the entries used, then select a date to see its sleep and check-in timeline.
 
 In Settings, you can opt into browser storage, export the journal as JSON, or delete it. Browser storage is per origin and browser profile. The GitHub Pages journal and localhost journal are separate. In the local app, **Discuss this review locally** attaches dated sleep and energy data to your next message; check-in notes are excluded. The server recomputes the review for Ollama. Model explanations can still make mistakes, so verify them against the evidence in the review.
+
+## Cloudflare hosted beta
+
+The hosted build locks AI chat behind a shared invite. Chat text and expressly attached sleep reviews go to Cloudflare Workers AI. The journal stays in the browser. The beta is for fictional data. To deploy from the repository root:
+
+1. Authenticate with Cloudflare using `npx wrangler@4.165.0 login`.
+2. Run `node build-cloudflare.mjs` and `npx wrangler@4.165.0 deploy`.
+3. Generate a random 64-character lowercase hex invite and set it with `npx wrangler@4.165.0 secret put AVICEENA_INVITE`. Share it privately with testers. Replacing the secret revokes the previous invite.
+
+The site continues to serve the journal when an invite is missing, invalid, or hosted inference is unavailable. The free Workers AI allowance and per-location chat rate limiting constrain usage. Keep the Cloudflare account on its free plan if testing with no paid inference budget.
